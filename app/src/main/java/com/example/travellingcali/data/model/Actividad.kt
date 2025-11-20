@@ -1,7 +1,9 @@
 package com.example.travellingcali.data.model
+import com.google.firebase.firestore.DocumentId
 
 data class Actividad(
-    val id: String = "",
+    @DocumentId val id: String = "",
+
     val titulo: String = "",
     val descripcionCorta: String = "",
     val descripcionLarga: String = "",

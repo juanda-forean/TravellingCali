@@ -8,8 +8,33 @@ import java.util.Calendar
 class ActividadRepository {
 
     private val db = FirebaseFirestore.getInstance()
-    private val actividadesCollection = db.collection("actividades")
+    private val collectionPath = "actividades"
+    private val actividadesCollection = db.collection(collectionPath)
 
+    fun crearActividad (
+        titulo: String,
+        descripcion: String,
+        zona: String,
+        fechaFin: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val data = hashMapOf(
+            "titulo" to titulo,
+            "descripcion" to descripcion,
+            "zona" to zona,
+            "fechaFin" to fechaFin
+        )
+
+        actividadesCollection
+            .add(data)
+            .addOnSuccessListener {
+                onSuccess ()
+            }
+            .addOnFailureListener { e ->
+                onError
+            }
+    }
     /**
      * onSuccess recibe DOS listas:
      *  - primeras: actividades próximas (activas y no vencidas)
