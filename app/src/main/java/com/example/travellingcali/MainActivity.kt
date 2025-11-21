@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.travellingcali.data.repository.ActividadRepository
 import com.example.travellingcali.ui.theme.ActivityEditorScreen
 import com.example.travellingcali.ui.theme.TravellingCaliTheme
+import androidx.compose.ui.graphics.vector.ImageVector
 
 class MainActivity : ComponentActivity() {
 
@@ -28,13 +29,14 @@ class MainActivity : ComponentActivity() {
 data class BottomNavItem(
     val route: String,
     val label: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: ImageVector
 )
 
 @Composable
 fun TravellingCaliApp() {
     val navController = rememberNavController()
     val actividadRepo = remember { ActividadRepository() }
+
     NavHost(
         navController = navController,
         startDestination = "home"
@@ -51,10 +53,23 @@ fun TravellingCaliApp() {
         composable("profile") {
             ProfileScreen(navController = navController)
         }
+
+        // CREAR
         composable("editor") {
             ActivityEditorScreen(
                 navController = navController,
-                actividadRepo = actividadRepo
+                actividadRepo = actividadRepo,
+                actividadId = null
+            )
+        }
+
+        // EDITAR
+        composable("editor/{actividadId}") { backStackEntry ->
+            val actividadId = backStackEntry.arguments?.getString("actividadId")
+            ActivityEditorScreen(
+                navController = navController,
+                actividadRepo = actividadRepo,
+                actividadId = actividadId
             )
         }
     }

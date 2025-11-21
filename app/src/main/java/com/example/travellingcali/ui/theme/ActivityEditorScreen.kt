@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,20 +31,54 @@ import com.example.travellingcali.data.repository.ActividadRepository
 @Composable
 fun ActivityEditorScreen(
     navController: NavHostController,
-    actividadRepo: ActividadRepository
+    actividadRepo: ActividadRepository,
+    actividadId: String? = null
 ) {
     var titulo by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
-    var zona by remember { mutableStateOf("") }
+    var descripcionCorta by remember { mutableStateOf("") }
+    var descripcionLarga by remember { mutableStateOf("") }
+    var zonaId by remember { mutableStateOf("") }
+    var direccion by remember { mutableStateOf("") }
+    var fechaInicio by remember { mutableStateOf("") }
     var fechaFin by remember { mutableStateOf("") }
+    var imagenUrl by remember { mutableStateOf("") }
 
     var isSaving by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val esEdicion = !actividadId.isNullOrBlank()
+
+    LaunchedEffect(actividadId) {
+        if (esEdicion) {
+            isLoading = true
+            actividadRepo.getActividadById(
+                id = actividadId!!,
+                onSuccess = { actividad ->
+                    titulo = actividad.titulo
+                    descripcionCorta = actividad.descripcionCorta
+                    descripcionLarga = actividad.descripcionLarga
+                    zonaId = actividad.zonaId
+                    direccion = actividad.direccion
+                    fechaInicio = actividad.fechaInicio
+                    fechaFin = actividad.fechaFin
+                    imagenUrl = actividad.imagenUrl
+                    isLoading = false
+                },
+                onError = { e ->
+                    errorMessage = e.message ?: "Error al cargar la actividad"
+                    isLoading = false
+                }
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Nueva actividad") }
+                title = {
+                    Text(text = if (esEdicion) "Editar actividad" else "Nueva actividad")
+                }
             )
         }
     ) { innerPadding ->
@@ -56,6 +91,11 @@ fun ActivityEditorScreen(
             horizontalAlignment = Alignment.Start
         ) {
 
+            if (isLoading) {
+                Text("Cargando actividad...", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             OutlinedTextField(
                 value = titulo,
                 onValueChange = { titulo = it },
@@ -67,9 +107,19 @@ fun ActivityEditorScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = descripcion,
-                onValueChange = { descripcion = it },
-                label = { Text("Descripción") },
+                value = descripcionCorta,
+                onValueChange = { descripcionCorta = it },
+                label = { Text("Descripción corta") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = descripcionLarga,
+                onValueChange = { descripcionLarga = it },
+                label = { Text("Descripción larga") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 80.dp)
@@ -78,9 +128,29 @@ fun ActivityEditorScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = zona,
-                onValueChange = { zona = it },
+                value = zonaId,
+                onValueChange = { zonaId = it },
                 label = { Text("Zona / Barrio") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = direccion,
+                onValueChange = { direccion = it },
+                label = { Text("Dirección") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = fechaInicio,
+                onValueChange = { fechaInicio = it },
+                label = { Text("Fecha inicio (YYYY-MM-DD)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -90,7 +160,17 @@ fun ActivityEditorScreen(
             OutlinedTextField(
                 value = fechaFin,
                 onValueChange = { fechaFin = it },
-                label = { Text("Fecha fin (ej: 2025-11-30)") },
+                label = { Text("Fecha fin (YYYY-MM-DD)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = imagenUrl,
+                onValueChange = { imagenUrl = it },
+                label = { Text("URL de imagen (opcional)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -107,28 +187,54 @@ fun ActivityEditorScreen(
 
             Button(
                 onClick = {
-                    if (titulo.isBlank() || zona.isBlank() || fechaFin.isBlank()) {
-                        errorMessage = "Título, zona y fecha no pueden estar vacíos"
+                    if (titulo.isBlank() || zonaId.isBlank() || fechaFin.isBlank()) {
+                        errorMessage = "Título, zona y fecha fin no pueden estar vacíos"
                         return@Button
                     }
 
                     isSaving = true
                     errorMessage = null
 
-                    actividadRepo.crearActividad(
-                        titulo = titulo,
-                        descripcion = descripcion,
-                        zona = zona,
-                        fechaFin = fechaFin,
-                        onSuccess = {
-                            isSaving = false
-                            navController.popBackStack() // vuelve a la Home
-                        },
-                        onError = { e ->
-                            isSaving = false
-                            errorMessage = e.message ?: "Error al guardar"
-                        }
-                    )
+                    if (esEdicion) {
+                        actividadRepo.actualizarActividad(
+                            id = actividadId!!,
+                            titulo = titulo,
+                            descripcionCorta = descripcionCorta,
+                            descripcionLarga = descripcionLarga,
+                            zonaId = zonaId,
+                            direccion = direccion,
+                            fechaInicio = fechaInicio,
+                            fechaFin = fechaFin,
+                            imagenUrl = imagenUrl,
+                            onSuccess = {
+                                isSaving = false
+                                navController.popBackStack()
+                            },
+                            onError = { e ->
+                                isSaving = false
+                                errorMessage = e.message ?: "Error al actualizar"
+                            }
+                        )
+                    } else {
+                        actividadRepo.crearActividad(
+                            titulo = titulo,
+                            descripcionCorta = descripcionCorta,
+                            descripcionLarga = descripcionLarga,
+                            zonaId = zonaId,
+                            direccion = direccion,
+                            fechaInicio = fechaInicio,
+                            fechaFin = fechaFin,
+                            imagenUrl = imagenUrl,
+                            onSuccess = {
+                                isSaving = false
+                                navController.popBackStack()
+                            },
+                            onError = { e ->
+                                isSaving = false
+                                errorMessage = e.message ?: "Error al guardar"
+                            }
+                        )
+                    }
                 },
                 enabled = !isSaving,
                 modifier = Modifier
@@ -140,5 +246,6 @@ fun ActivityEditorScreen(
         }
     }
 }
+
 
 

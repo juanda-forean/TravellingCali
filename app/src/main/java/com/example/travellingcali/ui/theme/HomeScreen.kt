@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -18,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,20 +35,18 @@ import com.example.travellingcali.components.ActividadCard
 import com.example.travellingcali.data.model.Actividad
 import com.example.travellingcali.data.repository.ActividadRepository
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostController) {
 
-    // Estado base
     var proximas by remember { mutableStateOf<List<Actividad>>(emptyList()) }
     var pasadas by remember { mutableStateOf<List<Actividad>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var zonaSeleccionada by remember { mutableStateOf("Todas") }
 
+    var actividadSeleccionada by remember { mutableStateOf<Actividad?>(null) }
+    var mostrarDialogo by remember { mutableStateOf(false) }
 
-    // Filtro de barrio
     val barrios = listOf(
         "Todos",
         "San Antonio",
@@ -56,7 +56,6 @@ fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostControl
         "El Peñón",
         "Alameda"
     )
-
     var barrioSeleccionado by remember { mutableStateOf("Todos") }
 
     LaunchedEffect(Unit) {
@@ -73,32 +72,23 @@ fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostControl
         )
     }
 
-    // Aplico filtro por barrio (usa zonaNombre, cámbialo si tu propiedad se llama diferente)
     fun coincideBarrio(actividad: Actividad, filtro: String): Boolean {
-        // Si el filtro es "Todas", siempre coincide
-        if (filtro == "Todas") return true
+        if (filtro == "Todos") return true
 
         val zonaActividad = actividad.zonaId.trim().lowercase()
         val filtroNormalizado = filtro.trim().lowercase()
 
-        // Coincidencia exacta o que la zona contenga el nombre del barrio
-        return zonaActividad == filtroNormalizado || zonaActividad.contains(filtroNormalizado)
+        return zonaActividad == filtroNormalizado ||
+                zonaActividad.contains(filtroNormalizado)
     }
 
-
-
     val proximasFiltradas = proximas.filter { actividad ->
-        coincideBarrio(actividad, zonaSeleccionada)
+        coincideBarrio(actividad, barrioSeleccionado)
     }
 
     val pasadasFiltradas = pasadas.filter { actividad ->
-        coincideBarrio(actividad, zonaSeleccionada)
+        coincideBarrio(actividad, barrioSeleccionado)
     }
-
-
-
-
-
 
     Scaffold(
         topBar = {
@@ -144,7 +134,6 @@ fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostControl
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // ===== Fila de filtros por barrios =====
                         item {
                             Row(
                                 modifier = Modifier
@@ -163,7 +152,6 @@ fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostControl
                             }
                         }
 
-                        // ===== Próximos eventos =====
                         if (proximasFiltradas.isNotEmpty()) {
                             item {
                                 Text(
@@ -177,13 +165,19 @@ fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostControl
                             }
 
                             items(proximasFiltradas) { actividad ->
-                                ActividadCard(actividad = actividad, esPasada = false)
+                                ActividadCard(
+                                    actividad = actividad,
+                                    esPasada = false,
+                                    onClick = {
+                                        actividadSeleccionada = actividad
+                                        mostrarDialogo = true
+                                    }
+                                )
                             }
 
                             item { Spacer(modifier = Modifier.padding(vertical = 4.dp)) }
                         }
 
-                        // ===== Eventos pasados =====
                         if (pasadasFiltradas.isNotEmpty()) {
                             item {
                                 Text(
@@ -197,13 +191,60 @@ fun HomeScreen(actividadRepo: ActividadRepository, navController: NavHostControl
                             }
 
                             items(pasadasFiltradas) { actividad ->
-                                ActividadCard(actividad = actividad, esPasada = true)
+                                ActividadCard(
+                                    actividad = actividad,
+                                    esPasada = true,
+                                    onClick = {
+                                        actividadSeleccionada = actividad
+                                        mostrarDialogo = true
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
+
+            if (mostrarDialogo && actividadSeleccionada != null) {
+                AlertDialog(
+                    onDismissRequest = { mostrarDialogo = false },
+                    title = { Text("Acciones") },
+                    text = { Text("¿Qué deseas hacer con esta actividad?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val id = actividadSeleccionada!!.id
+                                mostrarDialogo = false
+                                navController.navigate("editor/$id")
+                            }
+                        ) {
+                            Text("Editar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                val id = actividadSeleccionada!!.id
+                                actividadRepo.deleteActividad(
+                                    id = id,
+                                    onSuccess = {
+                                        proximas = proximas.filterNot { it.id == id }
+                                        pasadas = pasadas.filterNot { it.id == id }
+                                        mostrarDialogo = false
+                                    },
+                                    onError = { e ->
+                                        errorMessage =
+                                            e.message ?: "Error al eliminar la actividad"
+                                        mostrarDialogo = false
+                                    }
+                                )
+                            }
+                        ) {
+                            Text("Eliminar")
+                        }
+                    }
+                )
+            }
         }
     }
 }
-

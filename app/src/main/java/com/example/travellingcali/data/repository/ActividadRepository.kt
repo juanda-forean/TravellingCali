@@ -11,30 +11,107 @@ class ActividadRepository {
     private val collectionPath = "actividades"
     private val actividadesCollection = db.collection(collectionPath)
 
-    fun crearActividad (
+    // === CREAR ===
+    fun crearActividad(
         titulo: String,
-        descripcion: String,
-        zona: String,
+        descripcionCorta: String,
+        descripcionLarga: String,
+        zonaId: String,
+        direccion: String,
+        fechaInicio: String,
         fechaFin: String,
+        imagenUrl: String,
         onSuccess: () -> Unit,
         onError: (Exception) -> Unit
     ) {
         val data = hashMapOf(
             "titulo" to titulo,
-            "descripcion" to descripcion,
-            "zona" to zona,
-            "fechaFin" to fechaFin
+            "descripcionCorta" to descripcionCorta,
+            "descripcionLarga" to descripcionLarga,
+            "zonaId" to zonaId,
+            "direccion" to direccion,
+            "fechaInicio" to fechaInicio,
+            "fechaFin" to fechaFin,
+            "imagenUrl" to imagenUrl,
+            // campos extra del modelo que no usas por ahora
+            "categoriaId" to "",
+            "organizador" to "",
+            "contacto" to "",
+            "costoEstimado" to "",
+            "estado" to true
         )
 
         actividadesCollection
             .add(data)
-            .addOnSuccessListener {
-                onSuccess ()
-            }
-            .addOnFailureListener { e ->
-                onError
-            }
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e) }
     }
+
+    // === ACTUALIZAR ===
+    fun actualizarActividad(
+        id: String,
+        titulo: String,
+        descripcionCorta: String,
+        descripcionLarga: String,
+        zonaId: String,
+        direccion: String,
+        fechaInicio: String,
+        fechaFin: String,
+        imagenUrl: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val data = hashMapOf(
+            "titulo" to titulo,
+            "descripcionCorta" to descripcionCorta,
+            "descripcionLarga" to descripcionLarga,
+            "zonaId" to zonaId,
+            "direccion" to direccion,
+            "fechaInicio" to fechaInicio,
+            "fechaFin" to fechaFin,
+            "imagenUrl" to imagenUrl
+        )
+
+        actividadesCollection
+            .document(id)
+            .set(data)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
+    // === ELIMINAR ===
+    fun deleteActividad(
+        id: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        actividadesCollection
+            .document(id)
+            .delete()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
+    // === OBTENER UNA SOLA ACTIVIDAD POR ID ===
+    fun getActividadById(
+        id: String,
+        onSuccess: (Actividad) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        actividadesCollection
+            .document(id)
+            .get()
+            .addOnSuccessListener { doc ->
+                val actividad = doc.toActividad()
+                if (actividad != null) {
+                    onSuccess(actividad)
+                } else {
+                    onError(Exception("Actividad no encontrada"))
+                }
+            }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
     /**
      * onSuccess recibe DOS listas:
      *  - primeras: actividades próximas (activas y no vencidas)
@@ -125,7 +202,6 @@ class ActividadRepository {
             set(Calendar.MILLISECOND, 0)
         }
 
-        // true si fechaFin es HOY o FUTURA
         return !fechaFinCal.before(hoy)
     }
 }
